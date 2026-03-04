@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS medications (
+  id SERIAL PRIMARY KEY,
+  patient_id INTEGER NOT NULL REFERENCES users(id),
+  name VARCHAR(255) NOT NULL,
+  dosage VARCHAR(100) NOT NULL,
+  frequency VARCHAR(100) NOT NULL,
+  daily_doses INTEGER NOT NULL DEFAULT 1,
+  quantity INTEGER NOT NULL,
+  start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS alerts (
+  id SERIAL PRIMARY KEY,
+  patient_id INTEGER NOT NULL REFERENCES users(id),
+  medication_id INTEGER REFERENCES medications(id),
+  type VARCHAR(50) NOT NULL,
+  message TEXT,
+  alert_date DATE NOT NULL,
+  acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
