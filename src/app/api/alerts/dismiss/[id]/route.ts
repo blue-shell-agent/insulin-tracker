@@ -15,16 +15,19 @@ export async function PUT(
     }
 
     try {
-      // Verify alert exists and user has access
+      // Fetch alert and verify access
       const { rows } = await pool.query(
-        `SELECT a.id, a.patient_id FROM alerts a
-         JOIN patients p ON p.id = a.patient_id
-         WHERE a.id = $1 AND (p.doctor_id = $2 OR $3 = 'admin')`,
-        [alertId, user.id, user.role]
+        `SELECT id, patient_id FROM alerts WHERE id = $1`,
+        [alertId]
       );
 
       if (rows.length === 0) {
         return NextResponse.json({ error: "Alert not found" }, { status: 404 });
+      }
+
+      // Patients can only dismiss their own alerts; doctors/admins can dismiss any
+      if (user.role === "user" && rows[0].patient_id !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
       await pool.query(
