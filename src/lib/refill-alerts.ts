@@ -4,44 +4,44 @@ import pool from "./db";
  * Batch function: checks all active medications and creates refill alerts
  * for any that are running low (within 2 days of running out) and don't
  * already have a pending alert.
+ *
+ * Refill date is calculated dynamically from current date context:
+ * start_date + (quantity / daily_doses) days = estimated depletion date.
+ * Alert fires when depletion is <= 2 days away.
+ *
+ * Uses a single INSERT...SELECT to avoid N+1 queries.
  */
 export async function checkAndCreateRefillAlerts(): Promise<{
   created: number;
   checked: number;
 }> {
-  const { rows: medications } = await pool.query(
-    "SELECT * FROM medications WHERE active = TRUE"
+  // Count active medications for the response
+  const { rows: countRows } = await pool.query(
+    "SELECT COUNT(*)::int AS total FROM medications WHERE active = TRUE"
+  );
+  const checked = countRows[0].total;
+
+  // Single query: find medications nearing depletion with no pending refill alert,
+  // and insert alerts for them in one pass.
+  const { rowCount } = await pool.query(
+    `INSERT INTO alerts (patient_id, medication_id, type, message, severity, alert_date)
+     SELECT
+       m.patient_id,
+       m.id,
+       'refill_reminder',
+       'Time to refill ' || m.name || ' (' || m.dosage || '). Estimated to run out in 2 days.',
+       'warning',
+       (m.start_date + (m.quantity / m.daily_doses) * INTERVAL '1 day')::date
+     FROM medications m
+     WHERE m.active = TRUE
+       AND (m.start_date + (m.quantity / m.daily_doses) * INTERVAL '1 day') <= CURRENT_DATE + INTERVAL '2 days'
+       AND NOT EXISTS (
+         SELECT 1 FROM alerts a
+         WHERE a.medication_id = m.id
+           AND a.type = 'refill_reminder'
+           AND a.acknowledged = FALSE
+       )`
   );
 
-  let created = 0;
-
-  for (const med of medications) {
-    const daysSupply = Math.floor(med.quantity / med.daily_doses);
-    const refillDate = new Date(med.start_date);
-    refillDate.setDate(refillDate.getDate() + daysSupply - 2);
-    const refillDateStr = refillDate.toISOString().split("T")[0];
-
-    // Check if unacknowledged refill alert already exists for this medication
-    const { rows: existing } = await pool.query(
-      `SELECT id FROM alerts
-       WHERE medication_id = $1 AND type = 'refill_reminder' AND acknowledged = FALSE`,
-      [med.id]
-    );
-
-    if (existing.length === 0) {
-      await pool.query(
-        `INSERT INTO alerts (patient_id, medication_id, type, message, alert_date)
-         VALUES ($1, $2, 'refill_reminder', $3, $4)`,
-        [
-          med.patient_id,
-          med.id,
-          `Time to refill ${med.name} (${med.dosage}). Estimated to run out in 2 days.`,
-          refillDateStr,
-        ]
-      );
-      created++;
-    }
-  }
-
-  return { created, checked: medications.length };
+  return { created: rowCount ?? 0, checked };
 }

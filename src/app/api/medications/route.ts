@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
       const medication = medRows[0];
 
       await client.query(
-        `INSERT INTO alerts (patient_id, medication_id, type, message, alert_date)
-         VALUES ($1, $2, 'refill_reminder', $3, $4)`,
+        `INSERT INTO alerts (patient_id, medication_id, type, message, severity, alert_date)
+         VALUES ($1, $2, 'refill_reminder', $3, 'warning', $4)`,
         [
           user.id,
           medication.id,

@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const { rows } = await pool.query(
-      "SELECT * FROM alerts WHERE patient_id = $1 ORDER BY alert_date DESC",
+      "SELECT * FROM alerts WHERE patient_id = $1 ORDER BY created_at DESC",
       [pid]
     );
 

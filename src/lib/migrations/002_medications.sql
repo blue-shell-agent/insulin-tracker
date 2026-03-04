@@ -12,16 +12,11 @@ CREATE TABLE IF NOT EXISTS medications (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS alerts (
-  id SERIAL PRIMARY KEY,
-  patient_id INTEGER NOT NULL REFERENCES users(id),
-  medication_id INTEGER REFERENCES medications(id),
-  type VARCHAR(50) NOT NULL,
-  message TEXT,
-  alert_date DATE NOT NULL,
-  acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
 CREATE INDEX IF NOT EXISTS idx_medications_patient_active ON medications(patient_id, active);
+
+-- Extend existing alerts table for medication/refill support
+ALTER TABLE alerts ALTER COLUMN measurement_id DROP NOT NULL;
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS medication_id INTEGER REFERENCES medications(id);
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS alert_date DATE;
+
 CREATE INDEX IF NOT EXISTS idx_alerts_medication_type_ack ON alerts(medication_id, type, acknowledged);
