@@ -33,8 +33,9 @@ export async function PUT(
       );
 
       return NextResponse.json({ ok: true });
-    } catch (err: any) {
-      if (err.message?.includes("does not exist")) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("does not exist")) {
         return NextResponse.json({ error: "Alert not found" }, { status: 404 });
       }
       throw err;
