@@ -22,36 +22,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (daily_doses <= 0 || quantity <= 0 || !Number.isInteger(daily_doses) || !Number.isInteger(quantity)) {
+      return NextResponse.json(
+        { error: "daily_doses and quantity must be positive integers" },
+        { status: 400 }
+      );
+    }
+
     const startDate = start_date || new Date().toISOString().split("T")[0];
-
-    // Insert medication
-    const { rows: medRows } = await pool.query(
-      `INSERT INTO medications (patient_id, name, dosage, frequency, daily_doses, quantity, start_date, active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
-       RETURNING *`,
-      [user.id, name, dosage, frequency, daily_doses, quantity, startDate]
-    );
-
-    const medication = medRows[0];
 
     // Calculate refill alert date: start_date + (quantity / daily_doses) - 2 days
     const daysSupply = Math.floor(quantity / daily_doses);
     const refillDate = new Date(startDate);
     refillDate.setDate(refillDate.getDate() + daysSupply - 2);
 
-    // Insert refill reminder alert
-    await pool.query(
-      `INSERT INTO alerts (patient_id, medication_id, type, message, alert_date)
-       VALUES ($1, $2, 'refill_reminder', $3, $4)`,
-      [
-        user.id,
-        medication.id,
-        `Time to refill ${name} (${dosage}). Estimated to run out in 2 days.`,
-        refillDate.toISOString().split("T")[0],
-      ]
-    );
+    // Use transaction to ensure both medication and alert are created atomically
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
 
-    return NextResponse.json({ medication }, { status: 201 });
+      const { rows: medRows } = await client.query(
+        `INSERT INTO medications (patient_id, name, dosage, frequency, daily_doses, quantity, start_date, active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+         RETURNING *`,
+        [user.id, name, dosage, frequency, daily_doses, quantity, startDate]
+      );
+
+      const medication = medRows[0];
+
+      await client.query(
+        `INSERT INTO alerts (patient_id, medication_id, type, message, alert_date)
+         VALUES ($1, $2, 'refill_reminder', $3, $4)`,
+        [
+          user.id,
+          medication.id,
+          `Time to refill ${name} (${dosage}). Estimated to run out in 2 days.`,
+          refillDate.toISOString().split("T")[0],
+        ]
+      );
+
+      await client.query("COMMIT");
+
+      return NextResponse.json({ medication }, { status: 201 });
+    } catch (txError) {
+      await client.query("ROLLBACK");
+      throw txError;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error("Create medication error:", error);
     return NextResponse.json(

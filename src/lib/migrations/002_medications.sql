@@ -22,3 +22,6 @@ CREATE TABLE IF NOT EXISTS alerts (
   acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_medications_patient_active ON medications(patient_id, active);
+CREATE INDEX IF NOT EXISTS idx_alerts_medication_type_ack ON alerts(medication_id, type, acknowledged);

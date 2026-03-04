@@ -18,6 +18,10 @@ export async function GET(
     const { patientId } = await params;
     const pid = parseInt(patientId, 10);
 
+    if (isNaN(pid)) {
+      return NextResponse.json({ error: "Invalid patient ID" }, { status: 400 });
+    }
+
     if (user.id !== pid && user.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
