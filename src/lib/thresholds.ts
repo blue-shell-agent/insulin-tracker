@@ -11,6 +11,11 @@ export const THRESHOLDS = {
     warning: 140,
     unit: "mmHg",
   },
+  diastolic: {
+    normal: 80,
+    warning: 90,
+    unit: "mmHg",
+  },
 };
 
 export type VitalStatus = "normal" | "warning" | "critical";
@@ -24,6 +29,20 @@ export function getGlucemiaStatus(value: number): VitalStatus {
 export function getSystolicStatus(value: number): VitalStatus {
   if (value > THRESHOLDS.systolic.warning) return "critical";
   if (value >= THRESHOLDS.systolic.normal) return "warning";
+  return "normal";
+}
+
+export function getDiastolicStatus(value: number): VitalStatus {
+  if (value > THRESHOLDS.diastolic.warning) return "critical";
+  if (value >= THRESHOLDS.diastolic.normal) return "warning";
+  return "normal";
+}
+
+export function getBloodPressureStatus(systolic: number, diastolic: number): VitalStatus {
+  const s = getSystolicStatus(systolic);
+  const d = getDiastolicStatus(diastolic);
+  if (s === "critical" || d === "critical") return "critical";
+  if (s === "warning" || d === "warning") return "warning";
   return "normal";
 }
 

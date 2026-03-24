@@ -1,5 +1,5 @@
 import pool from "./db";
-import { THRESHOLDS } from "./thresholds";
+import { THRESHOLDS, type VitalStatus } from "./thresholds";
 
 interface MeasurementData {
   id: number;
@@ -9,11 +9,17 @@ interface MeasurementData {
   notes?: string;
 }
 
-export async function checkAndCreateAlert(measurement: MeasurementData): Promise<void> {
+export interface AlertResult {
+  status: VitalStatus;
+  title: string;
+  message: string;
+}
+
+export async function checkAndCreateAlert(measurement: MeasurementData): Promise<AlertResult | null> {
   try {
     let title = "";
     let message = "";
-    let severity = "warning";
+    let severity: VitalStatus = "warning";
 
     if (measurement.type === "glucemia") {
       const v = measurement.value;
@@ -33,11 +39,11 @@ export async function checkAndCreateAlert(measurement: MeasurementData): Promise
       const systolic = measurement.value;
       const diastolicMatch = measurement.notes?.match(/diastolic:(\d+)/);
       const diastolic = diastolicMatch ? Number(diastolicMatch[1]) : 0;
-      if (systolic > THRESHOLDS.systolic.warning) {
+      if (systolic > THRESHOLDS.systolic.warning || diastolic > THRESHOLDS.diastolic.warning) {
         title = "Presión arterial elevada";
         message = `${systolic}/${diastolic} ${THRESHOLDS.systolic.unit}`;
-        severity = "critical";
-      } else if (systolic >= THRESHOLDS.systolic.normal || diastolic > 90) {
+        severity = systolic > THRESHOLDS.systolic.warning ? "critical" : "warning";
+      } else if (systolic >= THRESHOLDS.systolic.normal || diastolic >= THRESHOLDS.diastolic.normal) {
         title = "Presión arterial elevada";
         message = `${systolic}/${diastolic} ${THRESHOLDS.systolic.unit}`;
         severity = "warning";
@@ -50,8 +56,12 @@ export async function checkAndCreateAlert(measurement: MeasurementData): Promise
          VALUES ($1, 'measurement_critical', $2, $3, $4)`,
         [measurement.patient_id, severity, title, message]
       );
+      return { status: severity, title, message };
     }
+
+    return null;
   } catch (err) {
     console.error("Alert check error:", err);
+    return null;
   }
 }

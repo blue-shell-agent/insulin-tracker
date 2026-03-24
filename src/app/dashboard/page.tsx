@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [diastolic, setDiastolic] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [msgType, setMsgType] = useState<"success" | "warning" | "critical">("success");
 
   const loadData = useCallback(async () => {
     try {
@@ -55,16 +56,43 @@ export default function DashboardPage() {
   useEffect(() => { loadData(); }, [loadData]);
 
   async function logMeasurement(type: string) {
-    setLoading(true); setMsg("");
+    setLoading(true); setMsg(""); setMsgType("success");
+
+    // Client-side BP validation
+    if (type === "blood_pressure") {
+      const sys = Number(systolic);
+      const dia = Number(diastolic);
+      if (sys <= dia) {
+        setMsg("La presión sistólica debe ser mayor que la diastólica");
+        setMsgType("critical");
+        setLoading(false);
+        return;
+      }
+    }
+
     const body = type === "glucemia"
       ? { type, value: Number(glucemia) }
       : { type: "blood_pressure", systolic: Number(systolic), diastolic: Number(diastolic) };
 
     try {
       const res = await fetch("/nivelo/api/measurements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" });
-      if (res.ok) { setMsg("✓ Registrado"); setGlucemia(""); setSystolic(""); setDiastolic(""); loadData(); }
-      else { const d = await res.json(); setMsg(d.error || "Error"); }
-    } catch { setMsg("Error de conexión"); }
+      if (res.ok) {
+        const data = await res.json();
+        setGlucemia(""); setSystolic(""); setDiastolic("");
+        if (data.alert) {
+          setMsg(`${data.alert.title}: ${data.alert.message}`);
+          setMsgType(data.status === "critical" ? "critical" : "warning");
+        } else {
+          setMsg("✓ Valores normales");
+          setMsgType("success");
+        }
+        loadData();
+      } else {
+        const d = await res.json();
+        setMsg(d.error || "Error");
+        setMsgType("critical");
+      }
+    } catch { setMsg("Error de conexión"); setMsgType("critical"); }
     finally { setLoading(false); }
   }
 
@@ -122,7 +150,7 @@ export default function DashboardPage() {
         )}
 
         {/* Quick Log */}
-        {msg && <div className="bg-primary-50 text-primary-700 p-3 rounded-xl text-sm text-center">{msg}</div>}
+        {msg && <div className={`p-3 rounded-xl text-sm text-center font-medium ${msgType === "success" ? "bg-green-50 text-green-700" : msgType === "warning" ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"}`}>{msg}</div>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="font-semibold text-gray-800 mb-3">🩸 Glucemia</h3>

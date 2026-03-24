@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-middleware";
 import { resolvePatientId } from "@/lib/patient-resolve";
 import { checkAndCreateAlert } from "@/lib/alerts";
+import { getGlucemiaStatus, getBloodPressureStatus, type VitalStatus } from "@/lib/thresholds";
 import pool from "@/lib/db";
 
 export async function GET(request: NextRequest) {
@@ -43,10 +44,16 @@ export async function POST(request: NextRequest) {
   let measNotes = notes || null;
 
   if (type === "blood_pressure") {
-    measValue = Number(systolic) || 0;
+    const sys = Number(systolic);
+    const dia = Number(diastolic);
+    if (!sys || !dia) return NextResponse.json({ error: "Sistólica y diastólica requeridas" }, { status: 400 });
+    if (sys <= dia) return NextResponse.json({ error: "La presión sistólica debe ser mayor que la diastólica" }, { status: 400 });
+    if (sys < 40 || sys > 300) return NextResponse.json({ error: "Sistólica fuera de rango válido (40-300)" }, { status: 400 });
+    if (dia < 20 || dia > 200) return NextResponse.json({ error: "Diastólica fuera de rango válido (20-200)" }, { status: 400 });
+    measValue = sys;
     unit = "mmHg";
     // Store diastolic in notes since DB has single value column
-    measNotes = `diastolic:${diastolic || 0}${notes ? ` ${notes}` : ""}`;
+    measNotes = `diastolic:${dia}${notes ? ` ${notes}` : ""}`;
   } else if (type === "glucemia") {
     measValue = Number(value) || 0;
     unit = "mg/dL";
@@ -65,7 +72,18 @@ export async function POST(request: NextRequest) {
   );
 
   const measurement = rows[0];
-  await checkAndCreateAlert(measurement);
+  const alertResult = await checkAndCreateAlert(measurement);
 
-  return NextResponse.json({ measurement });
+  // Compute status even when no alert was created
+  let status: VitalStatus = "normal";
+  if (alertResult) {
+    status = alertResult.status;
+  } else if (type === "glucemia") {
+    status = getGlucemiaStatus(measValue);
+  } else if (type === "blood_pressure") {
+    const dia = Number(diastolic);
+    status = getBloodPressureStatus(measValue, dia);
+  }
+
+  return NextResponse.json({ measurement, alert: alertResult, status });
 }
