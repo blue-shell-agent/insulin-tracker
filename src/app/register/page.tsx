@@ -1,31 +1,35 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (password !== confirm) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await fetch("/nivelo/api/auth/login", {credentials:"include",
+      const res = await fetch("/nivelo/api/auth/register", {
+        credentials: "include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Error al iniciar sesión"); return; }
-      // Use window.location for full page navigation to ensure cookie is picked up
-      if (data.user.role === "admin") window.location.href = "/nivelo/admin";
-      else if (data.user.role === "doctor") window.location.href = "/nivelo/doctor";
-      else window.location.href = "/nivelo/dashboard";
+      if (!res.ok) { setError(data.error || "Error al registrarse"); return; }
+      // Auto-logged in, redirect to dashboard
+      window.location.href = "/nivelo/dashboard";
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }
@@ -40,7 +44,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-gray-800">Nivelo</h1>
-          <p className="text-gray-500 mt-1">Tu salud, bajo control</p>
+          <p className="text-gray-500 mt-1">Creá tu cuenta</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
@@ -51,16 +55,21 @@ export default function LoginPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="••••••••" />
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="Mínimo 8 caracteres" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
+            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required minLength={8}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="Repetí tu contraseña" />
           </div>
           <button type="submit" disabled={loading}
             className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
-            {loading ? "Ingresando..." : "Iniciar Sesión"}
+            {loading ? "Creando cuenta..." : "Registrarse"}
           </button>
         </form>
         <p className="text-center text-sm text-gray-500 mt-6">
-          No tenés cuenta? <Link href="/register" className="text-primary-600 font-medium hover:underline">Registrate</Link>
+          Ya tenés cuenta? <Link href="/login" className="text-primary-600 font-medium hover:underline">Iniciar sesión</Link>
         </p>
       </div>
     </div>

@@ -8,10 +8,12 @@ interface User { id: number; email: string; role: string }
 interface Measurement { id: number; type: string; value: number; unit: string; notes: string; recorded_at: string }
 interface Alert { id: number; title: string; message: string; severity: string }
 interface Medication { id: number; name: string; dosage: string; frequency: string; instructions: string }
+interface Appointment { id: number; scheduled_at: string; duration_minutes: number; type: string; status: string; reason: string | null; doctor_email: string; doctor_first_name: string | null; doctor_last_name: string | null }
 
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
@@ -30,10 +32,11 @@ export default function DashboardPage() {
       setUser(userData.user);
 
       // Load other data independently — don't redirect on failure
-      const [measRes, alertRes, medRes] = await Promise.all([
+      const [measRes, alertRes, medRes, apptRes] = await Promise.all([
         fetch("/nivelo/api/measurements", { credentials: "include" }).catch(() => null),
         fetch("/nivelo/api/alerts", { credentials: "include" }).catch(() => null),
         fetch("/nivelo/api/medications", { credentials: "include" }).catch(() => null),
+        fetch("/nivelo/api/appointments?upcoming=true", { credentials: "include" }).catch(() => null),
       ]);
 
       if (measRes?.ok) {
@@ -47,6 +50,10 @@ export default function DashboardPage() {
       if (medRes?.ok) {
         const d = await medRes.json().catch(() => ({}));
         setMedications(d.medications || []);
+      }
+      if (apptRes?.ok) {
+        const d = await apptRes.json().catch(() => ({}));
+        setAppointments(d.appointments || []);
       }
     } catch {
       router.push("/login");
@@ -146,6 +153,47 @@ export default function DashboardPage() {
                 >✕</button>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Upcoming appointments */}
+        {appointments.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="font-semibold text-gray-800 mb-3">📅 Próximas Citas</h3>
+            <div className="space-y-2">
+              {appointments.map(a => {
+                const doctorName = (a.doctor_first_name || a.doctor_last_name)
+                  ? `Dr. ${a.doctor_first_name || ""} ${a.doctor_last_name || ""}`.trim()
+                  : a.doctor_email.split("@")[0];
+                return (
+                  <div key={a.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{a.type === "video_call" ? "📹" : "🏥"}</span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {new Date(a.scheduled_at).toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" })}
+                          {" "}
+                          {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                        <p className="text-xs text-gray-400">{doctorName} — {a.duration_minutes} min</p>
+                        {a.reason && <p className="text-xs text-gray-500">{a.reason}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "confirmed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                        {a.status === "confirmed" ? "Confirmada" : "Pendiente"}
+                      </span>
+                      {a.status === "pending" && (
+                        <button onClick={async () => {
+                          await fetch(`/nivelo/api/appointments/${a.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "confirmed" }) });
+                          setAppointments(prev => prev.map(x => x.id === a.id ? { ...x, status: "confirmed" } : x));
+                        }} className="text-xs text-primary-600 font-medium hover:underline">Confirmar</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

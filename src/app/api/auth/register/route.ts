@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, signToken } from "@/lib/auth";
 import pool from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
@@ -18,16 +18,12 @@ export async function POST(request: NextRequest) {
     }
     const { email, password } = parsed.data;
 
-    // Check if email already exists
     const existing = await pool.query(
       "SELECT id FROM users WHERE email = $1",
       [email.toLowerCase()]
     );
     if (existing.rows.length > 0) {
-      return NextResponse.json(
-        { error: "El email ya está registrado" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "El email ya está registrado" }, { status: 409 });
     }
 
     const password_hash = await hashPassword(password);
@@ -37,12 +33,25 @@ export async function POST(request: NextRequest) {
       [email.toLowerCase(), password_hash, "patient", email.split("@")[0], ""]
     );
 
-    return NextResponse.json({ user: rows[0] }, { status: 201 });
+    const user = rows[0];
+
+    // Auto-create patient record so they can log measurements immediately
+    await pool.query("INSERT INTO patients (user_id) VALUES ($1)", [user.id]);
+
+    // Auto-login: sign JWT and set cookie
+    const token = await signToken({ sub: user.id, email: user.email, role: user.role });
+
+    const response = NextResponse.json({ user }, { status: 201 });
+    response.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/nivelo",
+    });
+    return response;
   } catch (error) {
     console.error("Register error:", error);
-    return NextResponse.json(
-      { error: "Error interno" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

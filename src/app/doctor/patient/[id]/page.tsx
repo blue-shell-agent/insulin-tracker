@@ -57,6 +57,17 @@ interface Prescription {
   expires_at: string | null;
 }
 
+interface Appointment {
+  id: number;
+  scheduled_at: string;
+  duration_minutes: number;
+  type: string;
+  status: string;
+  reason: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 export default function PatientDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -66,8 +77,16 @@ export default function PatientDetailPage() {
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"vitals" | "alerts" | "prescriptions">("vitals");
+  const [tab, setTab] = useState<"vitals" | "alerts" | "prescriptions" | "appointments">("vitals");
+  const [showApptForm, setShowApptForm] = useState(false);
+  const [apptDate, setApptDate] = useState("");
+  const [apptTime, setApptTime] = useState("09:00");
+  const [apptDuration, setApptDuration] = useState("30");
+  const [apptType, setApptType] = useState("in_person");
+  const [apptReason, setApptReason] = useState("");
+  const [apptMsg, setApptMsg] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -78,6 +97,7 @@ export default function PatientDetailPage() {
       setMeasurements(data.measurements || []);
       setAlerts(data.alerts || []);
       setPrescriptions(data.prescriptions || []);
+      setAppointments(data.appointments || []);
     } catch { router.push("/doctor"); }
     finally { setLoading(false); }
   }, [patientId, router]);
@@ -151,11 +171,11 @@ export default function PatientDetailPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2">
-          {(["vitals", "alerts", "prescriptions"] as const).map(t => (
+        <div className="flex gap-2 flex-wrap">
+          {(["vitals", "alerts", "prescriptions", "appointments"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition ${tab === t ? "bg-primary-500 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>
-              {t === "vitals" ? `📊 Signos Vitales` : t === "alerts" ? `⚠️ Alertas (${alerts.filter(a => !a.read).length})` : `📋 Prescripciones`}
+              {t === "vitals" ? `📊 Signos Vitales` : t === "alerts" ? `⚠️ Alertas (${alerts.filter(a => !a.read).length})` : t === "prescriptions" ? `📋 Prescripciones` : `📅 Citas (${appointments.filter(a => a.status !== "cancelled").length})`}
             </button>
           ))}
         </div>
@@ -295,6 +315,122 @@ export default function PatientDetailPage() {
                     {p.expires_at && <p className="text-xs text-gray-400 mt-1">Vence: {new Date(p.expires_at).toLocaleDateString("es-AR")}</p>}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+        {tab === "appointments" && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-800">📅 Citas</h3>
+              <button onClick={() => setShowApptForm(!showApptForm)}
+                className="text-sm bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-xl transition">
+                {showApptForm ? "Cancelar" : "+ Nueva cita"}
+              </button>
+            </div>
+
+            {showApptForm && (
+              <div className="mb-6 p-4 bg-gray-50 rounded-xl space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Fecha</label>
+                    <input type="date" value={apptDate} onChange={e => setApptDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Hora</label>
+                    <input type="time" value={apptTime} onChange={e => setApptTime(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Duración (min)</label>
+                    <select value={apptDuration} onChange={e => setApptDuration(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="15">15 min</option>
+                      <option value="30">30 min</option>
+                      <option value="45">45 min</option>
+                      <option value="60">60 min</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Tipo</label>
+                    <select value={apptType} onChange={e => setApptType(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="in_person">Presencial</option>
+                      <option value="video_call">Videollamada</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Motivo</label>
+                  <input type="text" value={apptReason} onChange={e => setApptReason(e.target.value)} placeholder="Control trimestral..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                </div>
+                {apptMsg && <p className="text-sm text-green-600">{apptMsg}</p>}
+                <button disabled={!apptDate} onClick={async () => {
+                  const scheduled_at = new Date(`${apptDate}T${apptTime}`).toISOString();
+                  const res = await fetch("/nivelo/api/appointments", {
+                    method: "POST", credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ patient_id: Number(patientId), scheduled_at, duration_minutes: Number(apptDuration), type: apptType, reason: apptReason || null }),
+                  });
+                  if (res.ok) {
+                    setApptMsg("Cita creada");
+                    setShowApptForm(false);
+                    setApptDate(""); setApptReason("");
+                    load();
+                  } else {
+                    const d = await res.json();
+                    setApptMsg(d.error || "Error");
+                  }
+                }} className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition">
+                  Agendar cita
+                </button>
+              </div>
+            )}
+
+            {appointments.length === 0 ? <p className="text-gray-400 text-sm">Sin citas</p> : (
+              <div className="space-y-3">
+                {appointments.map(a => {
+                  const isPast = new Date(a.scheduled_at) < new Date();
+                  return (
+                    <div key={a.id} className={`p-4 rounded-xl border ${a.status === "cancelled" ? "border-gray-200 opacity-50" : isPast ? "border-gray-200" : "border-primary-200 bg-primary-50/30"}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{a.type === "video_call" ? "📹" : "🏥"}</span>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">
+                              {new Date(a.scheduled_at).toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+                              {" "}
+                              {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                            <p className="text-xs text-gray-400">{a.duration_minutes} min — {a.type === "video_call" ? "Videollamada" : "Presencial"}</p>
+                            {a.reason && <p className="text-xs text-gray-500 mt-1">{a.reason}</p>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "confirmed" ? "bg-green-100 text-green-700" : a.status === "pending" ? "bg-yellow-100 text-yellow-700" : a.status === "completed" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
+                            {a.status === "confirmed" ? "Confirmada" : a.status === "pending" ? "Pendiente" : a.status === "completed" ? "Completada" : "Cancelada"}
+                          </span>
+                          {a.status !== "cancelled" && a.status !== "completed" && (
+                            <button onClick={async () => {
+                              if (a.status === "pending" || a.status === "confirmed") {
+                                await fetch(`/nivelo/api/appointments/${a.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) });
+                                load();
+                              }
+                            }} className="text-xs text-blue-600 hover:underline">Completar</button>
+                          )}
+                          {a.status !== "cancelled" && a.status !== "completed" && (
+                            <button onClick={async () => {
+                              await fetch(`/nivelo/api/appointments/${a.id}`, { method: "DELETE", credentials: "include" });
+                              load();
+                            }} className="text-xs text-red-500 hover:underline">Cancelar</button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

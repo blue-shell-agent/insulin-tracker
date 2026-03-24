@@ -72,10 +72,19 @@ export async function GET(
     ORDER BY created_at DESC
   `, [patientId, doctorId]);
 
+  // Get appointments
+  const { rows: appointments } = await pool.query(`
+    SELECT id, scheduled_at, duration_minutes, type, status, reason, notes, created_at
+    FROM appointments
+    WHERE patient_id = $1 AND doctor_id = $2
+    ORDER BY scheduled_at DESC
+  `, [patientId, doctorId]);
+
   return NextResponse.json({
     patient: patientRows[0],
     measurements,
     alerts,
     prescriptions,
+    appointments,
   });
 }

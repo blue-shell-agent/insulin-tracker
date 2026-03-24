@@ -41,14 +41,22 @@ function parseDiastolic(notes: string | null): number | null {
 export default function DoctorDashboard() {
   const router = useRouter();
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [upcomingAppts, setUpcomingAppts] = useState<{ id: number; patient_id: number; scheduled_at: string; duration_minutes: number; type: string; status: string; reason: string | null; patient_email: string; patient_first_name: string | null; patient_last_name: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/nivelo/api/doctor/patients", { credentials: "include" });
-      if (!res.ok) { router.push("/login"); return; }
-      const data = await res.json();
+      const [patientsRes, apptsRes] = await Promise.all([
+        fetch("/nivelo/api/doctor/patients", { credentials: "include" }),
+        fetch("/nivelo/api/appointments?upcoming=true", { credentials: "include" }).catch(() => null),
+      ]);
+      if (!patientsRes.ok) { router.push("/login"); return; }
+      const data = await patientsRes.json();
       setPatients(data.patients || []);
+      if (apptsRes?.ok) {
+        const ad = await apptsRes.json().catch(() => ({}));
+        setUpcomingAppts(ad.appointments || []);
+      }
     } catch { router.push("/login"); }
     finally { setLoading(false); }
   }, [router]);
@@ -120,6 +128,41 @@ export default function DoctorDashboard() {
             <p className="text-xs text-gray-500">Normal</p>
           </div>
         </div>
+
+        {/* Upcoming appointments */}
+        {upcomingAppts.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="font-semibold text-gray-800 mb-4">📅 Próximas Citas</h3>
+            <div className="space-y-2">
+              {upcomingAppts.slice(0, 5).map(a => {
+                const name = (a.patient_first_name || a.patient_last_name)
+                  ? `${a.patient_first_name || ""} ${a.patient_last_name || ""}`.trim()
+                  : a.patient_email.split("@")[0];
+                return (
+                  <div key={a.id} onClick={() => router.push(`/doctor/patient/${a.patient_id}`)}
+                    className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50/30 cursor-pointer transition">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{a.type === "video_call" ? "📹" : "🏥"}</span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{name}</p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(a.scheduled_at).toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" })}
+                          {" "}
+                          {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                          {" — "}{a.duration_minutes} min
+                        </p>
+                        {a.reason && <p className="text-xs text-gray-500">{a.reason}</p>}
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "confirmed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                      {a.status === "confirmed" ? "Confirmada" : "Pendiente"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Patient list */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
