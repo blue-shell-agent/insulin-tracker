@@ -12,12 +12,12 @@ export async function GET(
     const pid = parseInt(patientId, 10);
 
     if (isNaN(pid)) {
-      return NextResponse.json({ error: "Invalid patient ID" }, { status: 400 });
+      return NextResponse.json({ error: "ID de paciente inválido" }, { status: 400 });
     }
 
     // Patients can only see their own data
     if (user.role !== "doctor" && user.id !== pid) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
     const url = new URL(request.url);
@@ -38,7 +38,7 @@ export async function GET(
       countParams.push(type);
     }
 
-    query += ` ORDER BY measured_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    query += ` ORDER BY recorded_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
     queryParams.push(limit, offset);
 
     const [dataResult, countResult] = await Promise.all([
@@ -60,6 +60,6 @@ export async function GET(
   } catch (err) {
     if (err instanceof Response) return err;
     console.error("GET /api/measurements/[patientId] error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

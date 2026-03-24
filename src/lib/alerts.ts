@@ -1,55 +1,57 @@
 import pool from "./db";
+import { THRESHOLDS } from "./thresholds";
 
 interface MeasurementData {
   id: number;
   patient_id: number;
   type: string;
-  value?: number;
-  systolic?: number;
-  diastolic?: number;
+  value: number;
+  notes?: string;
 }
 
 export async function checkAndCreateAlert(measurement: MeasurementData): Promise<void> {
-  if (measurement.type === "glucemia") {
-    await checkRange(measurement, null, measurement.value!);
-  } else if (measurement.type === "blood_pressure") {
-    await checkRange(measurement, "systolic", measurement.systolic!);
-    await checkRange(measurement, "diastolic", measurement.diastolic!);
-  }
-}
+  try {
+    let title = "";
+    let message = "";
+    let severity = "warning";
 
-async function checkRange(
-  measurement: MeasurementData,
-  subType: string | null,
-  value: number
-): Promise<void> {
-  const { rows } = await pool.query(
-    `SELECT min_value, max_value, unit FROM measurement_reference_ranges
-     WHERE type = $1 AND sub_type IS NOT DISTINCT FROM $2`,
-    [measurement.type, subType]
-  );
+    if (measurement.type === "glucemia") {
+      const v = measurement.value;
+      if (v < THRESHOLDS.glucemia.criticalLow || v > THRESHOLDS.glucemia.criticalHigh) {
+        severity = "critical";
+      }
+      if (v < THRESHOLDS.glucemia.warningLow) {
+        title = "Glucemia baja";
+        message = `${v} ${THRESHOLDS.glucemia.unit} (mínimo: ${THRESHOLDS.glucemia.warningLow})`;
+      } else if (v > THRESHOLDS.glucemia.warningHigh) {
+        title = "Glucemia alta";
+        message = `${v} ${THRESHOLDS.glucemia.unit} (máximo: ${THRESHOLDS.glucemia.warningHigh})`;
+      }
+    }
 
-  if (rows.length === 0) return;
+    if (measurement.type === "blood_pressure") {
+      const systolic = measurement.value;
+      const diastolicMatch = measurement.notes?.match(/diastolic:(\d+)/);
+      const diastolic = diastolicMatch ? Number(diastolicMatch[1]) : 0;
+      if (systolic > THRESHOLDS.systolic.warning) {
+        title = "Presión arterial elevada";
+        message = `${systolic}/${diastolic} ${THRESHOLDS.systolic.unit}`;
+        severity = "critical";
+      } else if (systolic >= THRESHOLDS.systolic.normal || diastolic > 90) {
+        title = "Presión arterial elevada";
+        message = `${systolic}/${diastolic} ${THRESHOLDS.systolic.unit}`;
+        severity = "warning";
+      }
+    }
 
-  const range = rows[0];
-  const label = subType ? `${measurement.type} (${subType})` : measurement.type;
-
-  let message: string | null = null;
-  let severity = "warning";
-
-  if (value < range.min_value) {
-    message = `${label} value ${value} ${range.unit} is below minimum (${range.min_value} ${range.unit})`;
-    severity = value < range.min_value * 0.8 ? "critical" : "warning";
-  } else if (value > range.max_value) {
-    message = `${label} value ${value} ${range.unit} is above maximum (${range.max_value} ${range.unit})`;
-    severity = value > range.max_value * 1.2 ? "critical" : "warning";
-  }
-
-  if (message) {
-    await pool.query(
-      `INSERT INTO alerts (measurement_id, patient_id, type, message, severity)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [measurement.id, measurement.patient_id, measurement.type, message, severity]
-    );
+    if (title) {
+      await pool.query(
+        `INSERT INTO alerts (patient_id, type, severity, title, message)
+         VALUES ($1, 'measurement_critical', $2, $3, $4)`,
+        [measurement.patient_id, severity, title, message]
+      );
+    }
+  } catch (err) {
+    console.error("Alert check error:", err);
   }
 }

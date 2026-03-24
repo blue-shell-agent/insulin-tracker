@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-middleware";
 import { resolvePatientId } from "@/lib/patient-resolve";
+import { checkAndCreateAlert } from "@/lib/alerts";
 import pool from "@/lib/db";
 
 export async function GET(request: NextRequest) {
@@ -64,54 +65,7 @@ export async function POST(request: NextRequest) {
   );
 
   const measurement = rows[0];
-  await checkAlerts(measurement);
+  await checkAndCreateAlert(measurement);
 
   return NextResponse.json({ measurement });
-}
-
-async function checkAlerts(measurement: any) {
-  try {
-    const { rows: ranges } = await pool.query(
-      "SELECT * FROM measurement_reference_ranges WHERE type = $1",
-      [measurement.type]
-    );
-    if (ranges.length === 0) return;
-
-    const range = ranges[0];
-    let alertMsg = "";
-    let alertTitle = "";
-    let severity = "warning";
-
-    if (measurement.type === "glucemia" && measurement.value) {
-      if (measurement.value < range.min_value) {
-        alertTitle = "Glucemia baja";
-        alertMsg = `${measurement.value} mg/dL (mínimo: ${range.min_value})`;
-        severity = measurement.value < range.critical_min ? "critical" : "warning";
-      } else if (measurement.value > range.max_value) {
-        alertTitle = "Glucemia alta";
-        alertMsg = `${measurement.value} mg/dL (máximo: ${range.max_value})`;
-        severity = measurement.value > range.critical_max ? "critical" : "warning";
-      }
-    }
-
-    if (measurement.type === "blood_pressure" && measurement.value) {
-      const diastolicMatch = measurement.notes?.match(/diastolic:(\d+)/);
-      const diastolic = diastolicMatch ? Number(diastolicMatch[1]) : 0;
-      if (measurement.value > 140 || diastolic > 90) {
-        alertTitle = "Presión arterial elevada";
-        alertMsg = `${measurement.value}/${diastolic} mmHg`;
-        severity = measurement.value > 180 ? "critical" : "warning";
-      }
-    }
-
-    if (alertMsg) {
-      await pool.query(
-        `INSERT INTO alerts (patient_id, type, severity, title, message)
-         VALUES ($1, 'measurement_critical', $2, $3, $4)`,
-        [measurement.patient_id, severity, alertTitle, alertMsg]
-      );
-    }
-  } catch (e) {
-    console.error("Alert check error:", e);
-  }
 }

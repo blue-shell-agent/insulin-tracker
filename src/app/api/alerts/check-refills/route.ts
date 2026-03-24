@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
     const result = await checkAndCreateRefillAlerts();
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Check refills error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Error interno" },
       { status: 500 }
     );
   }

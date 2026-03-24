@@ -4,14 +4,14 @@ import pool from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getAuthUser();
   if (!user || (user.role !== "doctor" && user.role !== "admin")) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const patientId = params.id;
+  const { id: patientId } = await params;
 
   // Verify doctor has access to this patient
   const { rows: doctorRows } = await pool.query(

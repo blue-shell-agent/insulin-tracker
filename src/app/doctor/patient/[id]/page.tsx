@@ -2,20 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-
-type VitalStatus = "normal" | "warning" | "critical";
-
-function getGlucoseStatus(v: number): VitalStatus {
-  if (v < 54 || v > 200) return "critical";
-  if (v < 70 || v > 140) return "warning";
-  return "normal";
-}
-
-function getBPStatus(s: number): VitalStatus {
-  if (s > 140) return "critical";
-  if (s >= 130) return "warning";
-  return "normal";
-}
+import { getGlucemiaStatus, getSystolicStatus, type VitalStatus } from "@/lib/thresholds";
 
 const statusBadge: Record<VitalStatus, string> = {
   normal: "bg-green-100 text-green-700",
@@ -237,8 +224,8 @@ export default function PatientDetailPage() {
                   {measurements.map(m => {
                     const diastolic = parseDiastolic(m.notes);
                     let status: VitalStatus = "normal";
-                    if (m.type === "glucemia") status = getGlucoseStatus(Number(m.value));
-                    if (m.type === "blood_pressure") status = getBPStatus(Number(m.value));
+                    if (m.type === "glucemia") status = getGlucemiaStatus(Number(m.value));
+                    if (m.type === "blood_pressure") status = getSystolicStatus(Number(m.value));
 
                     return (
                       <div key={m.id} className={`flex items-center justify-between p-3 rounded-xl ${statusBadge[status].replace("text-", "").includes("green") ? "bg-green-50/50" : statusBadge[status].replace("text-", "").includes("yellow") ? "bg-yellow-50/50" : statusBadge[status].replace("text-", "").includes("red") ? "bg-red-50/50" : "bg-gray-50/50"}`}>

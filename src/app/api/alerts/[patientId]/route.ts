@@ -7,39 +7,30 @@ export async function GET(
   { params }: { params: Promise<{ patientId: string }> }
 ) {
   try {
-    let user;
-    try {
-      user = await requireAuth(request);
-    } catch (res) {
-      if (res instanceof Response) return res;
-      throw res;
-    }
-
+    const user = await requireAuth(request);
     const { patientId } = await params;
     const pid = parseInt(patientId, 10);
 
     if (isNaN(pid)) {
-      return NextResponse.json({ error: "Invalid patient ID" }, { status: 400 });
+      return NextResponse.json({ error: "ID de paciente inválido" }, { status: 400 });
     }
 
     if (user.id !== pid && user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
     const { rows } = await pool.query(
-      `SELECT id, patient_id, type, message, severity, acknowledged, dismissed, created_at
+      `SELECT id, patient_id, type, severity, title, message, read, created_at
        FROM alerts
-       WHERE patient_id = $1 AND dismissed = FALSE
+       WHERE patient_id = $1 AND read = FALSE
        ORDER BY created_at DESC`,
       [pid]
     );
 
     return NextResponse.json({ alerts: rows });
-  } catch (error) {
-    console.error("Get alerts error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+  } catch (err) {
+    if (err instanceof Response) return err;
+    console.error("Get alerts error:", err);
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

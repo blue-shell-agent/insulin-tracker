@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { logout } from "@/lib/logout";
 
 interface User { id: number; email: string; role: string; created_at: string }
 interface Assignment { id: number; doctor_email: string; patient_email: string; status: string; assigned_at: string; doctor_user_id: number; patient_id: number }
@@ -53,10 +54,7 @@ export default function AdminPage() {
     finally { setLoading(false); }
   }
 
-  async function logout() {
-    await fetch("/nivelo/api/auth/logout", { method: "POST", credentials: "include" });
-    router.push("/login");
-  }
+  const handleLogout = () => logout(router);
 
   async function assignPatientToDoctor(e: React.FormEvent) {
     e.preventDefault();
@@ -103,7 +101,7 @@ export default function AdminPage() {
               <p className="text-xs text-gray-500">Panel de Administración</p>
             </div>
           </div>
-          <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">Cerrar sesión</button>
+          <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Cerrar sesión</button>
         </div>
       </header>
 

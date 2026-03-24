@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { getGlucemiaStatus, getSystolicStatus, statusColors, type VitalStatus } from "@/lib/thresholds";
+import { logout } from "@/lib/logout";
 
 interface Patient {
   patient_id: number;
@@ -18,20 +20,6 @@ interface Patient {
   unread_alerts: string;
 }
 
-type VitalStatus = "normal" | "warning" | "critical";
-
-function getGlucoseStatus(v: number): VitalStatus {
-  if (v < 54 || v > 200) return "critical";
-  if (v < 70 || v > 140) return "warning";
-  return "normal";
-}
-
-function getBPStatus(systolic: number): VitalStatus {
-  if (systolic > 140) return "critical";
-  if (systolic >= 130) return "warning";
-  return "normal";
-}
-
 const statusBadge: Record<VitalStatus, string> = {
   normal: "bg-green-100 text-green-700",
   warning: "bg-yellow-100 text-yellow-700",
@@ -39,9 +27,9 @@ const statusBadge: Record<VitalStatus, string> = {
 };
 
 const statusDot: Record<VitalStatus, string> = {
-  normal: "bg-green-500",
-  warning: "bg-yellow-500",
-  critical: "bg-red-500",
+  normal: statusColors.normal.dot,
+  warning: statusColors.warning.dot,
+  critical: statusColors.critical.dot,
 };
 
 function parseDiastolic(notes: string | null): number | null {
@@ -67,10 +55,7 @@ export default function DoctorDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function logout() {
-    await fetch("/nivelo/api/auth/logout", { method: "POST", credentials: "include" });
-    router.push("/login");
-  }
+  const handleLogout = () => logout(router);
 
   function patientName(p: Patient) {
     if (p.first_name || p.last_name) return `${p.first_name || ""} ${p.last_name || ""}`.trim();
@@ -79,8 +64,8 @@ export default function DoctorDashboard() {
 
   function worstStatus(p: Patient): VitalStatus {
     const statuses: VitalStatus[] = [];
-    if (p.latest_glucose) statuses.push(getGlucoseStatus(p.latest_glucose.value));
-    if (p.latest_bp) statuses.push(getBPStatus(p.latest_bp.value));
+    if (p.latest_glucose) statuses.push(getGlucemiaStatus(p.latest_glucose.value));
+    if (p.latest_bp) statuses.push(getSystolicStatus(p.latest_bp.value));
     if (statuses.includes("critical")) return "critical";
     if (statuses.includes("warning")) return "warning";
     return "normal";
@@ -111,7 +96,7 @@ export default function DoctorDashboard() {
               <p className="text-xs text-gray-500">Panel del Doctor</p>
             </div>
           </div>
-          <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">Cerrar sesión</button>
+          <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Cerrar sesión</button>
         </div>
       </header>
 
@@ -168,13 +153,13 @@ export default function DoctorDashboard() {
                     <div className="flex items-center gap-3">
                       {/* Glucose */}
                       {p.latest_glucose && (
-                        <span className={`px-2 py-1 rounded-lg text-xs font-medium ${statusBadge[getGlucoseStatus(p.latest_glucose.value)]}`}>
+                        <span className={`px-2 py-1 rounded-lg text-xs font-medium ${statusBadge[getGlucemiaStatus(p.latest_glucose.value)]}`}>
                           🩸 {p.latest_glucose.value} mg/dL
                         </span>
                       )}
                       {/* BP */}
                       {p.latest_bp && (
-                        <span className={`px-2 py-1 rounded-lg text-xs font-medium ${statusBadge[getBPStatus(p.latest_bp.value)]}`}>
+                        <span className={`px-2 py-1 rounded-lg text-xs font-medium ${statusBadge[getSystolicStatus(p.latest_bp.value)]}`}>
                           💓 {p.latest_bp.value}/{diastolic ?? "?"} mmHg
                         </span>
                       )}

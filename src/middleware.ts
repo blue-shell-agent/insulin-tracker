@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 function getSecret() {
-  return new TextEncoder().encode(process.env.JWT_SECRET || "");
+  const s = process.env.JWT_SECRET;
+  if (!s) throw new Error("JWT_SECRET not set");
+  return new TextEncoder().encode(s);
 }
 
 export async function middleware(request: NextRequest) {
@@ -62,7 +64,7 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     const response = NextResponse.redirect(url);
-    response.cookies.set("token", "", { maxAge: 0, path: "/" });
+    response.cookies.set("token", "", { maxAge: 0, path: "/nivelo" });
     return response;
   }
 }

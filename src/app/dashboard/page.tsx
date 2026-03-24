@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { logout } from "@/lib/logout";
 
 interface User { id: number; email: string; role: string }
 interface Measurement { id: number; type: string; value: number; unit: string; notes: string; recorded_at: string }
@@ -67,10 +68,7 @@ export default function DashboardPage() {
     finally { setLoading(false); }
   }
 
-  async function logout() {
-    await fetch("/nivelo/api/auth/logout", { method: "POST", credentials: "include" });
-    router.push("/login");
-  }
+  const handleLogout = () => logout(router);
 
   // Helper to extract diastolic from notes
   function getDiastolic(m: Measurement): string {
@@ -99,7 +97,7 @@ export default function DashboardPage() {
               <p className="text-xs text-gray-500">Hola, {user.email.split("@")[0]}</p>
             </div>
           </div>
-          <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">Cerrar sesión</button>
+          <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Cerrar sesión</button>
         </div>
       </header>
 
@@ -108,8 +106,16 @@ export default function DashboardPage() {
         {alerts.length > 0 && (
           <div className="space-y-2">
             {alerts.map(a => (
-              <div key={a.id} className={`p-4 rounded-xl text-sm font-medium ${a.severity === "critical" ? "bg-red-50 text-red-700 border border-red-200" : "bg-yellow-50 text-yellow-700 border border-yellow-200"}`}>
-                ⚠️ {a.title}{a.message ? `: ${a.message}` : ""}
+              <div key={a.id} className={`p-4 rounded-xl text-sm font-medium flex items-center justify-between ${a.severity === "critical" ? "bg-red-50 text-red-700 border border-red-200" : "bg-yellow-50 text-yellow-700 border border-yellow-200"}`}>
+                <span>⚠️ {a.title}{a.message ? `: ${a.message}` : ""}</span>
+                <button
+                  onClick={async () => {
+                    await fetch("/nivelo/api/alerts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alertIds: [a.id] }), credentials: "include" });
+                    setAlerts(prev => prev.filter(x => x.id !== a.id));
+                  }}
+                  className="ml-3 text-xs opacity-60 hover:opacity-100 transition"
+                  title="Descartar"
+                >✕</button>
               </div>
             ))}
           </div>

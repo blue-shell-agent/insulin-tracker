@@ -12,11 +12,11 @@ export async function GET(
     const pid = parseInt(patientId, 10);
 
     if (isNaN(pid)) {
-      return NextResponse.json({ error: "Invalid patient ID" }, { status: 400 });
+      return NextResponse.json({ error: "ID de paciente inválido" }, { status: 400 });
     }
 
     if (user.role !== "doctor" && user.id !== pid) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
     const url = new URL(request.url);
@@ -24,24 +24,24 @@ export async function GET(
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
 
-    if (!["glucemia", "blood_pressure"].includes(type)) {
-      return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+    if (!["glucemia", "blood_pressure", "weight"].includes(type)) {
+      return NextResponse.json({ error: "Tipo inválido" }, { status: 400 });
     }
 
-    let query = `SELECT id, type, value, systolic, diastolic, measured_at
+    let query = `SELECT id, type, value, unit, notes, recorded_at
                  FROM measurements WHERE patient_id = $1 AND type = $2`;
     const queryParams: (number | string)[] = [pid, type];
 
     if (from) {
       queryParams.push(from);
-      query += ` AND measured_at >= $${queryParams.length}`;
+      query += ` AND recorded_at >= $${queryParams.length}`;
     }
     if (to) {
       queryParams.push(to);
-      query += ` AND measured_at <= $${queryParams.length}`;
+      query += ` AND recorded_at <= $${queryParams.length}`;
     }
 
-    query += ` ORDER BY measured_at ASC`;
+    query += ` ORDER BY recorded_at ASC`;
 
     const [dataResult, rangesResult] = await Promise.all([
       pool.query(query, queryParams),
@@ -66,6 +66,6 @@ export async function GET(
   } catch (err) {
     if (err instanceof Response) return err;
     console.error("GET /api/measurements/[patientId]/chart error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyToken } from "./auth";
 import pool from "./db";
@@ -9,7 +10,7 @@ export interface AuthUser {
 }
 
 export async function getAuthUser(): Promise<AuthUser | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   if (!token) return null;
   try {
@@ -19,4 +20,12 @@ export async function getAuthUser(): Promise<AuthUser | null> {
   } catch {
     return null;
   }
+}
+
+export async function requireAuth(_request: NextRequest): Promise<AuthUser> {
+  const user = await getAuthUser();
+  if (!user) {
+    throw NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  }
+  return user;
 }
