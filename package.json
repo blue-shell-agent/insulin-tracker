@@ -6,7 +6,8 @@
     "dev": "next dev -p 3008",
     "build": "next build",
     "start": "next start -p 3008",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migrate": "psql $DATABASE_URL -f src/db/migrations/000_init.sql"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

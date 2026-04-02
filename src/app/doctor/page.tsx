@@ -47,8 +47,8 @@ export default function DoctorDashboard() {
   const load = useCallback(async () => {
     try {
       const [patientsRes, apptsRes] = await Promise.all([
-        fetch("/nivelo/api/doctor/patients", { credentials: "include" }),
-        fetch("/nivelo/api/appointments?upcoming=true", { credentials: "include" }).catch(() => null),
+        fetch("/api/doctor/patients", { credentials: "include" }),
+        fetch("/api/appointments?upcoming=true", { credentials: "include" }).catch(() => null),
       ]);
       if (!patientsRes.ok) { router.push("/login"); return; }
       const data = await patientsRes.json();

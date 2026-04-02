@@ -26,17 +26,17 @@ export default function DashboardPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const userRes = await fetch("/nivelo/api/auth/me", { credentials: "include" });
+      const userRes = await fetch("/api/auth/me", { credentials: "include" });
       if (!userRes.ok) { router.push("/login"); return; }
       const userData = await userRes.json();
       setUser(userData.user);
 
       // Load other data independently — don't redirect on failure
       const [measRes, alertRes, medRes, apptRes] = await Promise.all([
-        fetch("/nivelo/api/measurements", { credentials: "include" }).catch(() => null),
-        fetch("/nivelo/api/alerts", { credentials: "include" }).catch(() => null),
-        fetch("/nivelo/api/medications", { credentials: "include" }).catch(() => null),
-        fetch("/nivelo/api/appointments?upcoming=true", { credentials: "include" }).catch(() => null),
+        fetch("/api/measurements", { credentials: "include" }).catch(() => null),
+        fetch("/api/alerts", { credentials: "include" }).catch(() => null),
+        fetch("/api/medications", { credentials: "include" }).catch(() => null),
+        fetch("/api/appointments?upcoming=true", { credentials: "include" }).catch(() => null),
       ]);
 
       if (measRes?.ok) {
@@ -82,7 +82,7 @@ export default function DashboardPage() {
       : { type: "blood_pressure", systolic: Number(systolic), diastolic: Number(diastolic) };
 
     try {
-      const res = await fetch("/nivelo/api/measurements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" });
+      const res = await fetch("/api/measurements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setGlucemia(""); setSystolic(""); setDiastolic("");
@@ -157,7 +157,7 @@ export default function DashboardPage() {
                 <span>⚠️ {a.title}{a.message ? `: ${a.message}` : ""}</span>
                 <button
                   onClick={async () => {
-                    await fetch("/nivelo/api/alerts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alertIds: [a.id] }), credentials: "include" });
+                    await fetch("/api/alerts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alertIds: [a.id] }), credentials: "include" });
                     setAlerts(prev => prev.filter(x => x.id !== a.id));
                   }}
                   className="ml-3 text-xs opacity-60 hover:opacity-100 transition"
@@ -197,7 +197,7 @@ export default function DashboardPage() {
                       </span>
                       {a.status === "pending" && (
                         <button onClick={async () => {
-                          await fetch(`/nivelo/api/appointments/${a.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "confirmed" }) });
+                          await fetch(`/api/appointments/${a.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "confirmed" }) });
                           setAppointments(prev => prev.map(x => x.id === a.id ? { ...x, status: "confirmed" } : x));
                         }} className="text-xs text-primary-600 font-medium hover:underline">Confirmar</button>
                       )}

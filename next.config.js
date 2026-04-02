@@ -1,5 +1,3 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  basePath: '/nivelo',
-};
+const nextConfig = {};
 module.exports = nextConfig;

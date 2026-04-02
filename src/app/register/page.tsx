@@ -20,7 +20,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const res = await fetch("/nivelo/api/auth/register", {
+      const res = await fetch("/api/auth/register", {
         credentials: "include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -29,7 +29,7 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Error al registrarse"); return; }
       // Auto-logged in, redirect to dashboard
-      window.location.href = "/nivelo/dashboard";
+      window.location.href = "/dashboard";
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }

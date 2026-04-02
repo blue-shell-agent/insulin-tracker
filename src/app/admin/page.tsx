@@ -23,7 +23,7 @@ export default function AdminPage() {
 
   const loadUsers = useCallback(async () => {
     try {
-      const res = await fetch("/nivelo/api/admin/users", {credentials:"include"});
+      const res = await fetch("/api/admin/users", {credentials:"include"});
       if (res.status === 403 || res.status === 401) { router.push("/login"); return; }
       const data = await res.json();
       setUsers(data.users || []);
@@ -32,7 +32,7 @@ export default function AdminPage() {
 
   const loadAssignments = useCallback(async () => {
     try {
-      const res = await fetch("/nivelo/api/admin/assign", {credentials:"include"});
+      const res = await fetch("/api/admin/assign", {credentials:"include"});
       if (res.ok) { const data = await res.json(); setAssignments(data.assignments || []); }
     } catch {}
   }, []);
@@ -43,7 +43,7 @@ export default function AdminPage() {
     e.preventDefault();
     setLoading(true); setMsg(""); setError("");
     try {
-      const res = await fetch("/nivelo/api/admin/users", {credentials:"include",
+      const res = await fetch("/api/admin/users", {credentials:"include",
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, role }),
       });
@@ -60,7 +60,7 @@ export default function AdminPage() {
     e.preventDefault();
     setAssignMsg(""); setAssignError("");
     try {
-      const res = await fetch("/nivelo/api/admin/assign", {credentials:"include",
+      const res = await fetch("/api/admin/assign", {credentials:"include",
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ doctor_user_id: Number(assignDoctor), patient_id: Number(assignPatient) }),
       });
@@ -72,7 +72,7 @@ export default function AdminPage() {
 
   async function removeAssignment(id: number) {
     try {
-      await fetch("/nivelo/api/admin/assign", {credentials:"include",
+      await fetch("/api/admin/assign", {credentials:"include",
         method: "DELETE", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });

@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     const response = NextResponse.redirect(url);
-    response.cookies.set("token", "", { maxAge: 0, path: "/nivelo" });
+    response.cookies.set("token", "", { maxAge: 0, path: "/" });
     return response;
   }
 }

@@ -15,7 +15,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/nivelo/api/auth/login", {credentials:"include",
+      const res = await fetch("/api/auth/login", {credentials:"include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -23,9 +23,9 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Error al iniciar sesión"); return; }
       // Use window.location for full page navigation to ensure cookie is picked up
-      if (data.user.role === "admin") window.location.href = "/nivelo/admin";
-      else if (data.user.role === "doctor") window.location.href = "/nivelo/doctor";
-      else window.location.href = "/nivelo/dashboard";
+      if (data.user.role === "admin") window.location.href = "/admin";
+      else if (data.user.role === "doctor") window.location.href = "/doctor";
+      else window.location.href = "/dashboard";
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }

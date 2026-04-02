@@ -90,7 +90,7 @@ export default function PatientDetailPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/nivelo/api/doctor/patients/${patientId}`, { credentials: "include" });
+      const res = await fetch(`/api/doctor/patients/${patientId}`, { credentials: "include" });
       if (!res.ok) { router.push("/doctor"); return; }
       const data = await res.json();
       setPatient(data.patient);
@@ -369,7 +369,7 @@ export default function PatientDetailPage() {
                 {apptMsg && <p className="text-sm text-green-600">{apptMsg}</p>}
                 <button disabled={!apptDate} onClick={async () => {
                   const scheduled_at = new Date(`${apptDate}T${apptTime}`).toISOString();
-                  const res = await fetch("/nivelo/api/appointments", {
+                  const res = await fetch("/api/appointments", {
                     method: "POST", credentials: "include",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ patient_id: Number(patientId), scheduled_at, duration_minutes: Number(apptDuration), type: apptType, reason: apptReason || null }),
@@ -415,14 +415,14 @@ export default function PatientDetailPage() {
                           {a.status !== "cancelled" && a.status !== "completed" && (
                             <button onClick={async () => {
                               if (a.status === "pending" || a.status === "confirmed") {
-                                await fetch(`/nivelo/api/appointments/${a.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) });
+                                await fetch(`/api/appointments/${a.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) });
                                 load();
                               }
                             }} className="text-xs text-blue-600 hover:underline">Completar</button>
                           )}
                           {a.status !== "cancelled" && a.status !== "completed" && (
                             <button onClick={async () => {
-                              await fetch(`/nivelo/api/appointments/${a.id}`, { method: "DELETE", credentials: "include" });
+                              await fetch(`/api/appointments/${a.id}`, { method: "DELETE", credentials: "include" });
                               load();
                             }} className="text-xs text-red-500 hover:underline">Cancelar</button>
                           )}

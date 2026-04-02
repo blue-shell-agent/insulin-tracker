@@ -4,7 +4,7 @@ import { useEffect } from "react";
 export default function Home() {
   useEffect(() => {
     // Let middleware handle the redirect based on auth/role
-    window.location.href = "/nivelo/dashboard";
+    window.location.href = "/dashboard";
   }, []);
 
   return (

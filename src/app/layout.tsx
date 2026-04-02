@@ -5,7 +5,7 @@ import SwRegister from "./sw-register";
 export const metadata: Metadata = {
   title: "Nivelo — Tu salud, bajo control",
   description: "Plataforma de seguimiento médico para pacientes",
-  manifest: "/nivelo/manifest.json",
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <head>
-        <link rel="icon" href="/nivelo/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body className="bg-gray-50 min-h-screen"><SwRegister />{children}</body>
     </html>
